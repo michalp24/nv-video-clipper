@@ -1,0 +1,98 @@
+# Project Rules — Video Clip Exporter (Next.js + R2 + Redis + FFmpeg Worker)
+
+## 0) Golden Rule
+- Prioritize a simple, reliable UX: upload → select 3–6s → choose size → export → download.
+- Keep the codebase production-ready: typed, validated, documented, and observable.
+
+## 1) Tech + Architecture
+- Next.js App Router on Vercel for UI + API orchestration only (no heavy video processing on Vercel).
+- Direct-to-object-storage uploads (Cloudflare R2 via signed PUT URL).
+- Job status + queue via Upstash Redis.
+- FFmpeg runs in a separate Dockerized worker service (Cloud Run or equivalent).
+- Typescript everywhere. No `any` unless unavoidable and justified in comments.
+
+## 2) Video + Export Requirements
+- Input: uploaded video files only.
+- Clip duration must be 3–6 seconds inclusive.
+- Export sizes (exact): 630x354, 850x480, 1920x1080.
+- Output format: MP4 only.
+- Default export removes audio (`-an`) to reduce size, with optional toggle to keep audio.
+- FFmpeg output uses:
+  - H.264 (libx264)
+  - CRF default ~30 (configurable)
+  - `-movflags +faststart`
+  - fps default 24 (configurable)
+- Strict validation: start/end must be within video duration, and end > start.
+
+## 3) UI / Styling
+- Dark theme inspired by NVIDIA GeForce site:
+  - near-black background, subtle borders, soft glow, restrained green accent (#76B900).
+- Use Tailwind CSS.
+- Components must be accessible:
+  - labels for inputs
+  - focus states
+  - error messaging and disabled states
+
+## 4) API Contracts (Must Stay Stable)
+- `POST /api/r2/upload-url` returns `{ uploadUrl, key }`
+- `POST /api/jobs` accepts:
+  `{ key, start, duration, size, removeAudio }`
+  returns `{ jobId }`
+- `GET /api/jobs/[jobId]` returns:
+  `{ status, progress, resultUrl?, error? }`
+- Any API change must update:
+  - `docs/API.md`
+  - relevant types in `/lib/types.ts`
+
+## 5) Documentation Rules (Well Documented Notes)
+- Every feature/route must have:
+  - a short README section or a doc entry
+  - inline comments for any non-obvious logic (especially crop/trim math, ffmpeg args, redis schema)
+- Maintain these docs (must update when changed):
+  - `README.md` (setup + run)
+  - `docs/ARCHITECTURE.md`
+  - `docs/API.md`
+  - `docs/FFMPEG.md`
+  - `docs/DEPLOYMENT.md`
+
+## 6) Code Quality + Safety
+- Validate all user inputs server-side using Zod.
+- Rate-limit API endpoints (at minimum /api/jobs) via Upstash rate limit.
+- Set sane constraints:
+  - max upload size
+  - max duration 6s
+  - file type checks (video/*)
+- Never log secrets. Redact sensitive values.
+
+## 7) Git + Workflow (IMPORTANT)
+- Cursor/Claude must:
+  - keep changes in small, reviewable commits
+  - update docs alongside code changes
+  - remind me to push to git at natural checkpoints:
+    - after implementing a full feature (upload flow, job flow, worker flow, UI polish)
+    - after fixing a bug that affects core behavior
+    - before switching to a new major task
+- At the end of every work session response, include a “Git Check” section:
+  - `git status` reminder
+  - suggested commit message
+  - reminder to `git push`
+
+## 8) Testing
+- Add at least minimal tests for:
+  - input validation (zod schemas)
+  - job status transitions (queued → processing → done/error)
+- If tests are skipped, explain why and add a follow-up ticket in `docs/TODO.md`.
+
+## 9) Performance + Observability
+- Worker should log:
+  - jobId
+  - ffmpeg command used (sanitized)
+  - timing stats (download, encode, upload)
+- Track progress (%). If exact % is hard, provide step-based progress (e.g., 10/40/70/100).
+
+## 10) Output Requirements for Claude in Cursor
+When asked to generate code:
+- Provide complete files with paths.
+- No TODOs for core flows.
+- Ensure build passes: typecheck + lint.
+- End with “Git Check” reminders.

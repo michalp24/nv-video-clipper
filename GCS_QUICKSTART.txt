@@ -1,0 +1,123 @@
+╔══════════════════════════════════════════════════════════════════╗
+║        GOOGLE CLOUD STORAGE - QUICK SETUP (15 minutes)          ║
+╚══════════════════════════════════════════════════════════════════╝
+
+STEP 1: Create GCS Bucket (5 min)
+────────────────────────────────────────────────────────────────
+1. Go to: https://console.cloud.google.com
+2. Create new project: "nv-video-clipper"
+3. Enable Cloud Storage API
+4. Create bucket:
+   • Name: nv-video-clipper-yourname (globally unique)
+   • Location: Region (closest to you)
+   • Storage class: Standard
+   • Access: Fine-grained OR Uniform/Private (both work!)
+     - Personal accounts: usually Fine-grained
+     - Organization accounts: usually Uniform (private)
+5. Configure CORS in bucket settings
+
+
+STEP 2: Create Service Account (5 min)
+────────────────────────────────────────────────────────────────
+1. Go to: IAM & Admin → Service Accounts
+2. Create service account: "nv-video-clipper-sa"
+3. Grant role: "Storage Object Admin"
+4. Create key: JSON format
+5. Download JSON file
+6. Move to project folder as: gcs-credentials.json
+
+
+STEP 3: Run Setup Script (2 min)
+────────────────────────────────────────────────────────────────
+cd "/Users/mpechardo/Desktop/NVIDIA/NV Video Clipper"
+./setup-gcs.sh
+
+(Script will auto-detect project ID and help configure .env files)
+
+
+STEP 4: Install Dependencies (2 min)
+────────────────────────────────────────────────────────────────
+npm install
+cd worker && npm install && cd ..
+
+
+STEP 5: Start Services (1 min)
+────────────────────────────────────────────────────────────────
+Terminal 1:
+  npm run dev
+
+Terminal 2:
+  cd worker
+  npm run dev
+
+
+STEP 6: Test! (2 min)
+────────────────────────────────────────────────────────────────
+1. Open: http://localhost:3000
+2. No more "Demo Mode" banner!
+3. Upload video → Trim → Export → Download
+4. Check worker terminal: "Using Google Cloud Storage" ✓
+
+
+═══════════════════════════════════════════════════════════════════
+
+WHAT YOU GET (FREE TIER):
+• 5 GB storage per month
+• 5,000 write operations per month
+• 50,000 read operations per month
+• 1 GB egress (North America)
+
+COST FOR DEVELOPMENT: $0/month
+
+
+TROUBLESHOOTING:
+────────────────────────────────────────────────────────────────
+"Could not load default credentials"
+→ Check gcs-credentials.json is in project root
+→ Check GCS_CREDENTIALS_PATH in .env
+
+"Permission denied"
+→ Service account needs "Storage Object Admin" role
+→ Re-download service account key
+
+"CORS error"
+→ Configure CORS in GCS bucket settings (see GCS_SETUP.md)
+
+"Demo Mode banner still showing"
+→ .env missing GCS variables
+→ Restart server after adding credentials
+
+
+NEED REDIS TOO:
+────────────────────────────────────────────────────────────────
+The job queue still needs Redis. Quick option:
+
+Upstash Redis (free tier):
+1. Go to: https://console.upstash.com
+2. Create database: nv-video-clipper
+3. Copy REST URL and Token to .env files
+4. Restart services
+
+
+MANUAL .ENV SETUP:
+────────────────────────────────────────────────────────────────
+If you prefer to edit .env manually:
+
+.env and worker/.env should contain:
+  GCS_PROJECT_ID=your-project-id
+  GCS_BUCKET_NAME=nv-video-clipper-yourname
+  GCS_CREDENTIALS_PATH=./gcs-credentials.json (or ../gcs-credentials.json for worker)
+  
+  UPSTASH_REDIS_REST_URL=https://...
+  UPSTASH_REDIS_REST_TOKEN=...
+
+
+═══════════════════════════════════════════════════════════════════
+
+Full detailed guide: GCS_SETUP.md
+Interactive setup: ./setup-gcs.sh
+
+╔══════════════════════════════════════════════════════════════════╗
+║                   Ready to start? 🚀                             ║
+║          Follow GCS_SETUP.md for step-by-step guide             ║
+╚══════════════════════════════════════════════════════════════════╝

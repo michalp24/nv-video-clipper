@@ -1,0 +1,111 @@
+╔══════════════════════════════════════════════════════════════════╗
+║          NV VIDEO CLIPPER - QUICK SETUP REFERENCE                ║
+╚══════════════════════════════════════════════════════════════════╝
+
+OPTION 1: Interactive Setup (Easiest)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Run in terminal:
+  ./setup-env.sh
+
+Then follow the prompts to enter your credentials.
+
+
+OPTION 2: Manual Setup
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1: Cloudflare R2 (5 min)
+────────────────────────────────────────────────────────────────
+1. Go to: https://dash.cloudflare.com
+2. Click: R2 Object Storage → Create bucket
+3. Name: nv-video-clipper
+4. Click: Manage R2 API Tokens → Create API Token
+5. Permissions: Admin Read & Write
+6. Copy these 3 values:
+   ✓ Access Key ID
+   ✓ Secret Access Key
+   ✓ Endpoint URL (https://XXXXX.r2.cloudflarestorage.com)
+
+
+STEP 2: Upstash Redis (3 min)
+────────────────────────────────────────────────────────────────
+1. Go to: https://console.upstash.com
+2. Click: Create Database
+3. Name: nv-video-clipper
+4. Region: Choose closest to you
+5. Copy these 2 values:
+   ✓ UPSTASH_REDIS_REST_URL
+   ✓ UPSTASH_REDIS_REST_TOKEN
+
+
+STEP 3: Update .env Files (2 min)
+────────────────────────────────────────────────────────────────
+Edit TWO files with your credentials:
+
+File 1: .env
+File 2: worker/.env
+
+Replace these placeholders:
+  R2_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
+  R2_ACCESS_KEY_ID=your_actual_key
+  R2_SECRET_ACCESS_KEY=your_actual_secret
+  UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+  UPSTASH_REDIS_REST_TOKEN=your_actual_token
+
+
+STEP 4: Restart Services (1 min)
+────────────────────────────────────────────────────────────────
+Terminal 1:
+  Ctrl+C (stop current server)
+  npm run dev
+
+Terminal 2:
+  cd worker
+  npm run dev
+
+
+STEP 5: Test (2 min)
+────────────────────────────────────────────────────────────────
+1. Open: http://localhost:3000
+2. Yellow banner should be GONE
+3. Upload a video
+4. Trim it (3-6 seconds)
+5. Click "Export Clip"
+6. Watch progress → Download!
+
+
+═══════════════════════════════════════════════════════════════════
+
+WHAT YOU NEED:
+• Cloudflare account (free)
+• Upstash account (free)
+• 10-15 minutes
+
+WHAT IT COSTS:
+• R2: Free tier = 10GB storage, 1M operations/month
+• Redis: Free tier = 10K commands/day
+• Total: $0/month for development
+
+═══════════════════════════════════════════════════════════════════
+
+TROUBLESHOOTING:
+
+"Upload still fails"
+  → Check .env has real credentials (no "placeholder")
+  → Restart server after updating .env
+
+"Jobs stuck in Queued"
+  → Make sure worker is running (cd worker && npm run dev)
+  → Check worker terminal for errors
+
+"Demo Mode banner still showing"
+  → .env file still has placeholder values
+  → Restart server after fixing
+
+═══════════════════════════════════════════════════════════════════
+
+Full guide: CLOUD_SETUP.md
+Help needed? Check the troubleshooting section in CLOUD_SETUP.md
+
+╔══════════════════════════════════════════════════════════════════╗
+║              Ready? Let's set up those cloud services! 🚀        ║
+╚══════════════════════════════════════════════════════════════════╝
