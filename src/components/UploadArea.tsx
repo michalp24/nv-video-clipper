@@ -45,112 +45,22 @@ export default function UploadArea({ onUploadComplete }: UploadAreaProps) {
       setIsUploading(true);
       setProgress(0);
 
-      // Check if we have real storage credentials or are in demo mode
-      const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true" || 
-                         (!process.env.R2_ENDPOINT && !process.env.GCS_PROJECT_ID) ||
-                         (process.env.R2_ENDPOINT && process.env.R2_ENDPOINT.includes("placeholder"));
-
-      // Get signed upload URL (or local endpoint)
-      const urlResponse = await fetch("/api/r2/upload-url", {
-        method: "POST",
-      });
-
-      if (!urlResponse.ok) {
-        throw new Error("Failed to get upload URL");
+      // CLIENT-SIDE ONLY: No server upload needed!
+      // Simulate progress for UX
+      for (let i = 0; i <= 100; i += 20) {
+        setProgress(i);
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
 
-      const { uploadUrl, key } = await urlResponse.json();
+      // Create local URL for the video
+      const videoUrl = URL.createObjectURL(file);
+      const key = `client/${Date.now()}-${file.name}`;
 
-      // Check which storage mode we're using
-      if (uploadUrl.startsWith("local://")) {
-        // LOCAL STORAGE MODE: Upload to local API endpoint
-        console.log("✓ Using Local Storage - uploading to server");
-
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("key", key);
-
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            setProgress(percent);
-          }
-        });
-
-        await new Promise((resolve, reject) => {
-          xhr.addEventListener("load", () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve(xhr.response);
-            } else {
-              reject(new Error(`Upload failed: ${xhr.status}`));
-            }
-          });
-
-          xhr.addEventListener("error", () => {
-            reject(new Error("Upload failed"));
-          });
-
-          xhr.open("POST", "/api/storage/upload");
-          xhr.send(formData);
-        });
-
-        const videoUrl = URL.createObjectURL(file);
-        onUploadComplete(videoUrl, key, file);
-
-      } else if (isDemoMode) {
-        // DEMO MODE: Simulate upload progress
-        console.log("🎬 Running in DEMO MODE - no upload needed");
-        
-        for (let i = 0; i <= 100; i += 10) {
-          setProgress(i);
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        const videoUrl = URL.createObjectURL(file);
-        const demoKey = `demo/${Date.now()}-${file.name}`;
-
-        console.log("✅ Demo upload complete");
-        onUploadComplete(videoUrl, demoKey, file);
-
-      } else {
-        // CLOUD STORAGE MODE: Upload to signed URL (GCS or R2)
-        console.log("✓ Using Cloud Storage (GCS or R2)");
-
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            setProgress(percent);
-          }
-        });
-
-        await new Promise((resolve, reject) => {
-          xhr.addEventListener("load", () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve(xhr.response);
-            } else {
-              reject(new Error(`Upload failed: ${xhr.status}`));
-            }
-          });
-
-          xhr.addEventListener("error", () => {
-            reject(new Error("Upload failed"));
-          });
-
-          xhr.open("PUT", uploadUrl);
-          xhr.setRequestHeader("Content-Type", file.type);
-          xhr.send(file);
-        });
-
-        const videoUrl = URL.createObjectURL(file);
-        onUploadComplete(videoUrl, key, file);
-      }
+      console.log("✅ Video loaded for client-side processing");
+      onUploadComplete(videoUrl, key, file);
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Upload failed. Please try again.");
+      alert("Failed to load video. Please try again.");
     } finally {
       setIsUploading(false);
       setProgress(0);
