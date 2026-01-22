@@ -28,20 +28,28 @@ if (USE_R2) {
   r2Module = require("./r2");
 }
 
-// Import local storage functions if needed
+// Import local storage functions if needed (lazy loaded to avoid build issues)
 let localModule: any = null;
-if (USE_LOCAL) {
-  localModule = require("./local-storage");
-  console.log("✓ Using Local Filesystem Storage (no cloud needed)");
-}
+const loadLocalModule = () => {
+  if (!localModule && USE_LOCAL) {
+    try {
+      localModule = require("./local-storage");
+      console.log("✓ Using Local Filesystem Storage (no cloud needed)");
+    } catch (error) {
+      console.warn("Local storage module not available (this is normal on Vercel)");
+    }
+  }
+  return localModule;
+};
 
 /**
  * Generate a signed upload URL (works with GCS, R2, and local storage)
  */
 export async function generateUploadUrl(key: string): Promise<string> {
-  if (USE_LOCAL && localModule) {
+  const local = loadLocalModule();
+  if (USE_LOCAL && local) {
     // Local storage implementation
-    return localModule.generateUploadUrl(key);
+    return local.generateUploadUrl(key);
   } else if (USE_GCS && gcsStorage && gcsBucketName) {
     // GCS implementation
     const bucket = gcsStorage.bucket(gcsBucketName);
@@ -67,9 +75,10 @@ export async function generateUploadUrl(key: string): Promise<string> {
  * Generate a signed download URL (works with GCS, R2, and local storage)
  */
 export async function generateDownloadUrl(key: string): Promise<string> {
-  if (USE_LOCAL && localModule) {
+  const local = loadLocalModule();
+  if (USE_LOCAL && local) {
     // Local storage implementation
-    return localModule.generateDownloadUrl(key);
+    return local.generateDownloadUrl(key);
   } else if (USE_GCS && gcsStorage && gcsBucketName) {
     // GCS implementation
     const bucket = gcsStorage.bucket(gcsBucketName);

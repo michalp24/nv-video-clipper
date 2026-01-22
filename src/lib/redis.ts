@@ -9,11 +9,20 @@ const USE_LOCAL = process.env.STORAGE_MODE === "local" ||
 let redis: Redis | null = null;
 let localQueue: any = null;
 
-if (USE_LOCAL) {
-  // Use local SQLite queue
-  localQueue = require("./local-queue");
-  console.log("✓ Using Local SQLite Queue (no Redis needed)");
-} else {
+// Lazy load local queue to avoid build issues
+const loadLocalQueue = () => {
+  if (!localQueue && USE_LOCAL) {
+    try {
+      localQueue = require("./local-queue");
+      console.log("✓ Using Local SQLite Queue (no Redis needed)");
+    } catch (error) {
+      console.warn("Local queue module not available (this is normal on Vercel)");
+    }
+  }
+  return localQueue;
+};
+
+if (!USE_LOCAL) {
   // Use Upstash Redis
   redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -28,8 +37,9 @@ const QUEUE_KEY = "job:queue";
  * Create a new job
  */
 export async function createJob(job: Job): Promise<void> {
-  if (USE_LOCAL && localQueue) {
-    await localQueue.createJob(job);
+  const queue = loadLocalQueue();
+  if (USE_LOCAL && queue) {
+    await queue.createJob(job);
   } else if (redis) {
     await redis.set(`${JOB_PREFIX}${job.id}`, JSON.stringify(job));
     await redis.lpush(QUEUE_KEY, job.id);
@@ -40,8 +50,9 @@ export async function createJob(job: Job): Promise<void> {
  * Get a job by ID
  */
 export async function getJob(jobId: string): Promise<Job | null> {
-  if (USE_LOCAL && localQueue) {
-    return await localQueue.getJob(jobId);
+  const queue = loadLocalQueue();
+  if (USE_LOCAL && queue) {
+    return await queue.getJob(jobId);
   } else if (redis) {
     const data = await redis.get<string>(`${JOB_PREFIX}${jobId}`);
     if (!data) return null;
@@ -54,8 +65,9 @@ export async function getJob(jobId: string): Promise<Job | null> {
  * Update a job
  */
 export async function updateJob(jobId: string, updates: Partial<Job>): Promise<void> {
-  if (USE_LOCAL && localQueue) {
-    await localQueue.updateJob(jobId, updates);
+  const queue = loadLocalQueue();
+  if (USE_LOCAL && queue) {
+    await queue.updateJob(jobId, updates);
   } else if (redis) {
     const job = await getJob(jobId);
     if (!job) throw new Error("Job not found");
@@ -74,8 +86,9 @@ export async function updateJob(jobId: string, updates: Partial<Job>): Promise<v
  * Pop a job from the queue (for worker)
  */
 export async function popJob(): Promise<string | null> {
-  if (USE_LOCAL && localQueue) {
-    return await localQueue.popJob();
+  const queue = loadLocalQueue();
+  if (USE_LOCAL && queue) {
+    return await queue.popJob();
   } else if (redis) {
     const jobId = await redis.rpop<string>(QUEUE_KEY);
     return jobId;
