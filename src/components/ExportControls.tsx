@@ -17,9 +17,10 @@ export default function ExportControls({
   isExporting = false 
 }: ExportControlsProps) {
   const [size, setSize] = useState<ExportSize>("1920x1080");
-  const [removeAudio, setRemoveAudio] = useState(true);
+  const [removeAudio, setRemoveAudio] = useState(false);
 
   const handleExport = () => {
+    console.log("Exporting with removeAudio:", removeAudio);
     onExport(size, removeAudio);
   };
   
@@ -73,16 +74,22 @@ export default function ExportControls({
       {/* Remove Audio Toggle */}
       <div className="flex items-center justify-between rounded-lg border border-nvidia-border bg-nvidia-gray/50 p-3">
         <div>
-          <p className="text-sm font-medium text-white">Remove Audio</p>
+          <p className="text-sm font-medium text-white">
+            {removeAudio ? "Audio: Off" : "Audio: On"}
+          </p>
           <p className="mt-0.5 text-xs text-gray-400">
-            Reduces file size
+            {removeAudio ? "No audio in export" : "Include audio"}
           </p>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={removeAudio}
-          onClick={() => setRemoveAudio(!removeAudio)}
+          onClick={() => {
+            const newValue = !removeAudio;
+            console.log("Toggle audio removal:", newValue);
+            setRemoveAudio(newValue);
+          }}
           className={`
             relative inline-flex h-6 w-11 items-center rounded-full transition-colors
             focus:outline-none focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2

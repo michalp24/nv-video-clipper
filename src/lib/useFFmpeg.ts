@@ -82,12 +82,16 @@ export function useFFmpeg() {
 
       // Add audio settings or remove audio
       if (removeAudio) {
+        console.log("FFmpeg: Removing audio (-an flag)");
         ffmpegArgs.push("-an"); // Remove audio
       } else {
+        console.log("FFmpeg: Keeping audio with AAC encoding");
         ffmpegArgs.push("-c:a", "aac", "-b:a", "128k"); // Keep audio with AAC encoding
       }
 
       ffmpegArgs.push(outputName);
+
+      console.log("FFmpeg command:", ffmpegArgs.join(" "));
 
       // Run FFmpeg command to trim and resize
       await ffmpeg.exec(ffmpegArgs);
