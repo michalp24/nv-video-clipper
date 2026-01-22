@@ -69,24 +69,37 @@ export function useFFmpeg() {
       
       await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
 
-      // Build FFmpeg command
+      // Build FFmpeg command with explicit stream mapping
       const ffmpegArgs = [
         "-i", inputName,
         "-ss", startTime.toString(),
         "-t", duration.toString(),
-        "-vf", `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
       ];
 
       // Add audio settings or remove audio
       if (removeAudio) {
-        console.log("FFmpeg: Removing audio (-an flag)");
-        ffmpegArgs.push("-an"); // Remove audio
+        console.log("FFmpeg: Removing audio (no audio stream)");
+        // Only map video stream, completely exclude audio
+        ffmpegArgs.push(
+          "-map", "0:v:0",  // Only map first video stream
+          "-vf", `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
+          "-c:v", "libx264",
+          "-preset", "fast",
+          "-crf", "23"
+        );
       } else {
         console.log("FFmpeg: Keeping audio with AAC encoding");
-        ffmpegArgs.push("-c:a", "aac", "-b:a", "128k"); // Keep audio with AAC encoding
+        // Map both video and audio streams
+        ffmpegArgs.push(
+          "-map", "0:v:0",  // Map first video stream
+          "-map", "0:a:0?", // Map first audio stream if it exists (? makes it optional)
+          "-vf", `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
+          "-c:v", "libx264",
+          "-preset", "fast",
+          "-crf", "23",
+          "-c:a", "aac",
+          "-b:a", "128k"
+        );
       }
 
       ffmpegArgs.push(outputName);
