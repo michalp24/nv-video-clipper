@@ -1,7 +1,7 @@
 "use client";
 
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { fetchFile } from "@ffmpeg/util";
 import { useEffect, useRef, useState } from "react";
 
 export function useFFmpeg() {
@@ -24,11 +24,11 @@ export function useFFmpeg() {
       const ffmpeg = new FFmpeg();
       ffmpegRef.current = ffmpeg;
 
-      // Load FFmpeg core
-      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
+      // Load FFmpeg core from CDN with direct URLs
+      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        coreURL: `${baseURL}/ffmpeg-core.js`,
+        wasmURL: `${baseURL}/ffmpeg-core.wasm`,
       });
 
       setIsLoaded(true);
