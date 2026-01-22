@@ -63,6 +63,7 @@ export default function Home() {
           status: "processing",
           progress: 0,
           createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
         setCurrentJob(mockJob);
 
@@ -78,7 +79,7 @@ export default function Home() {
           height,
           (progress) => {
             setExportProgress(progress);
-            setCurrentJob((prev) => prev ? { ...prev, progress } : null);
+            setCurrentJob((prev) => prev ? { ...prev, progress, updatedAt: Date.now() } : null);
           }
         );
 
@@ -93,6 +94,7 @@ export default function Home() {
           progress: 100,
           resultKey: "client-download",
           resultUrl: url,
+          updatedAt: Date.now(),
         } : null);
 
         setIsExporting(false);
@@ -103,6 +105,7 @@ export default function Home() {
           ...prev,
           status: "failed",
           error: error instanceof Error ? error.message : "Export failed",
+          updatedAt: Date.now(),
         } : null);
         setIsExporting(false);
       }
