@@ -46,6 +46,7 @@ export function useFFmpeg() {
     duration: number,
     width: number,
     height: number,
+    removeAudio: boolean,
     onProgress?: (progress: number) => void
   ): Promise<Blob> => {
     if (!ffmpegRef.current || !isLoaded) {
@@ -68,8 +69,8 @@ export function useFFmpeg() {
       
       await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
 
-      // Run FFmpeg command to trim and resize
-      await ffmpeg.exec([
+      // Build FFmpeg command
+      const ffmpegArgs = [
         "-i", inputName,
         "-ss", startTime.toString(),
         "-t", duration.toString(),
@@ -77,10 +78,19 @@ export function useFFmpeg() {
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "23",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        outputName
-      ]);
+      ];
+
+      // Add audio settings or remove audio
+      if (removeAudio) {
+        ffmpegArgs.push("-an"); // Remove audio
+      } else {
+        ffmpegArgs.push("-c:a", "aac", "-b:a", "128k"); // Keep audio with AAC encoding
+      }
+
+      ffmpegArgs.push(outputName);
+
+      // Run FFmpeg command to trim and resize
+      await ffmpeg.exec(ffmpegArgs);
 
       // Read the output file
       const data = await ffmpeg.readFile(outputName);

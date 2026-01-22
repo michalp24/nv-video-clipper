@@ -5,7 +5,6 @@ import UploadArea from "@/components/UploadArea";
 import VideoPreview from "@/components/VideoPreview";
 import TrimControls from "@/components/TrimControls";
 import ExportControls from "@/components/ExportControls";
-import ExportProgress from "@/components/ExportProgress";
 import { useFFmpeg } from "@/lib/useFFmpeg";
 import type { Job, ExportSize } from "@/types";
 
@@ -77,6 +76,7 @@ export default function Home() {
           duration,
           width,
           height,
+          removeAudio,
           (progress) => {
             setExportProgress(progress);
             setCurrentJob((prev) => prev ? { ...prev, progress, updatedAt: Date.now() } : null);
@@ -195,29 +195,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right Column - Export Settings & Status */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="mb-3 text-lg font-semibold text-white">
-                  Export Settings
-                </h3>
-                <div className="rounded-xl border border-nvidia-border bg-nvidia-gray/30 p-6">
-                  <ExportControls
-                    onExport={handleExport}
-                    disabled={!canExport}
-                  />
-                </div>
+            {/* Right Column - Export Settings */}
+            <div>
+              <h3 className="mb-3 text-lg font-semibold text-white">
+                Export Settings
+              </h3>
+              <div className="rounded-xl border border-nvidia-border bg-nvidia-gray/30 p-6">
+                <ExportControls
+                  onExport={handleExport}
+                  disabled={!canExport}
+                  currentJob={currentJob}
+                  isExporting={isExporting}
+                />
               </div>
-
-              {/* Export Status - Only shown when exporting or completed */}
-              {currentJob && (
-                <div>
-                  <h3 className="mb-3 text-lg font-semibold text-white">
-                    Export Status
-                  </h3>
-                  <ExportProgress job={currentJob} />
-                </div>
-              )}
             </div>
           </div>
         </div>

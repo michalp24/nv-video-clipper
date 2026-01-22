@@ -1,19 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import type { ExportSize } from "@/types";
+import type { ExportSize, Job } from "@/types";
 
 interface ExportControlsProps {
   onExport: (size: ExportSize, removeAudio: boolean) => void;
   disabled: boolean;
+  currentJob?: Job | null;
+  isExporting?: boolean;
 }
 
-export default function ExportControls({ onExport, disabled }: ExportControlsProps) {
+export default function ExportControls({ 
+  onExport, 
+  disabled, 
+  currentJob,
+  isExporting = false 
+}: ExportControlsProps) {
   const [size, setSize] = useState<ExportSize>("1920x1080");
   const [removeAudio, setRemoveAudio] = useState(true);
 
   const handleExport = () => {
     onExport(size, removeAudio);
+  };
+  
+  const handleDownload = () => {
+    if (currentJob?.resultUrl) {
+      const link = document.createElement('a');
+      link.href = currentJob.resultUrl;
+      link.download = `clip-${currentJob.size}-${Date.now()}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -81,23 +99,54 @@ export default function ExportControls({ onExport, disabled }: ExportControlsPro
         </button>
       </div>
 
-      {/* Export Button */}
-      <button
-        onClick={handleExport}
-        disabled={disabled}
-        className={`
-          w-full rounded-lg px-6 py-3 text-base font-semibold transition-all
-          focus:outline-none focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2
-          focus:ring-offset-nvidia-dark
-          ${
-            disabled
-              ? 'cursor-not-allowed bg-nvidia-gray text-gray-500'
-              : 'bg-nvidia-green text-black hover:bg-nvidia-green-hover shadow-lg shadow-nvidia-green/20'
-          }
-        `}
-      >
-        Export Clip
-      </button>
+      {/* Export Button / Progress / Download */}
+      {!isExporting && currentJob?.status !== "completed" ? (
+        // Export Button
+        <button
+          onClick={handleExport}
+          disabled={disabled}
+          className={`
+            w-full rounded-lg px-6 py-3 text-base font-semibold transition-all
+            focus:outline-none focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2
+            focus:ring-offset-nvidia-dark
+            ${
+              disabled
+                ? 'cursor-not-allowed bg-nvidia-gray text-gray-500'
+                : 'bg-nvidia-green text-black hover:bg-nvidia-green-hover shadow-lg shadow-nvidia-green/20'
+            }
+          `}
+        >
+          Export Clip
+        </button>
+      ) : currentJob?.status === "completed" ? (
+        // Download Button
+        <button
+          onClick={handleDownload}
+          className="w-full rounded-lg px-6 py-3 text-base font-semibold transition-all
+            bg-nvidia-green text-black hover:bg-nvidia-green-hover shadow-lg shadow-nvidia-green/20
+            focus:outline-none focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2
+            focus:ring-offset-nvidia-dark flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Download Clip
+        </button>
+      ) : (
+        // Progress Bar
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-300">Processing...</span>
+            <span className="font-semibold text-nvidia-green">{currentJob?.progress || 0}%</span>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-nvidia-border">
+            <div
+              className="h-full bg-nvidia-green transition-all duration-300"
+              style={{ width: `${currentJob?.progress || 0}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
