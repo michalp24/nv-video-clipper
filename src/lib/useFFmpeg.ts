@@ -89,8 +89,8 @@ export function useFFmpeg() {
       await ffmpeg.deleteFile(inputName);
       await ffmpeg.deleteFile(outputName);
 
-      // Convert to Blob
-      return new Blob([data], { type: "video/mp4" });
+      // Convert to Blob (cast data to Uint8Array to fix type issue)
+      return new Blob([data as Uint8Array], { type: "video/mp4" });
     } catch (error) {
       console.error("FFmpeg processing error:", error);
       throw new Error(error instanceof Error ? error.message : "Video processing failed");
