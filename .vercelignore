@@ -16,6 +16,10 @@ worker/
 # Storage (238MB - too large!)
 storage/
 
+# Local queue/storage (not needed for client-side processing)
+src/lib/local-queue.ts
+src/lib/local-storage.ts
+
 # Build artifacts
 .next/
 
