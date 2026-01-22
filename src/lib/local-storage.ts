@@ -1,22 +1,43 @@
-import { promises as fs } from "fs";
-import { join } from "path";
-import { nanoid } from "nanoid";
+// This module only works in Node.js with filesystem access (not on Vercel)
+// These imports are conditional to prevent build errors
+
+let fs: any;
+let join: any;
+let nanoid: any;
+
+if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+  try {
+    fs = require("fs").promises;
+    join = require("path").join;
+    nanoid = require("nanoid").nanoid;
+  } catch (error) {
+    // Running in environment without filesystem (like Vercel)
+    console.warn("Filesystem not available");
+  }
+}
 
 // Storage directory in project root
-const STORAGE_DIR = join(process.cwd(), "storage");
-const UPLOADS_DIR = join(STORAGE_DIR, "uploads");
-const RESULTS_DIR = join(STORAGE_DIR, "results");
+const STORAGE_DIR = join ? join(process.cwd(), "storage") : "/tmp/storage";
+const UPLOADS_DIR = join ? join(STORAGE_DIR, "uploads") : "/tmp/uploads";
+const RESULTS_DIR = join ? join(STORAGE_DIR, "results") : "/tmp/results";
 
 /**
  * Initialize local storage directories
  */
 async function initStorage() {
-  await fs.mkdir(UPLOADS_DIR, { recursive: true });
-  await fs.mkdir(RESULTS_DIR, { recursive: true });
+  if (!fs) return;
+  try {
+    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    await fs.mkdir(RESULTS_DIR, { recursive: true });
+  } catch (error) {
+    // Ignore errors in non-filesystem environments
+  }
 }
 
-// Initialize on module load
-initStorage().catch(console.error);
+// Initialize on module load (only if fs is available)
+if (fs) {
+  initStorage().catch(console.error);
+}
 
 /**
  * Generate a signed upload URL (for local storage, we just return a local endpoint)

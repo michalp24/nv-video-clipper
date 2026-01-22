@@ -1,17 +1,33 @@
-import Database from "better-sqlite3";
-import { join } from "path";
+// This module only works in Node.js with filesystem access (not on Vercel)
 import type { Job } from "@/types";
 
-// SQLite database path
-const DB_PATH = join(process.cwd(), "storage", "queue.db");
+let Database: any;
+let join: any;
 
-let db: Database.Database | null = null;
+if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+  try {
+    Database = require("better-sqlite3");
+    join = require("path").join;
+  } catch (error) {
+    // Running in environment without filesystem (like Vercel)
+    console.warn("SQLite not available");
+  }
+}
+
+// SQLite database path
+const DB_PATH = join ? join(process.cwd(), "storage", "queue.db") : "/tmp/queue.db";
+
+let db: any | null = null;
 
 /**
  * Initialize SQLite database
  */
 function initDatabase() {
   if (db) return db;
+  if (!Database) {
+    console.warn("SQLite not available (this is normal on Vercel)");
+    return null;
+  }
 
   db = new Database(DB_PATH);
 
@@ -41,6 +57,7 @@ function initDatabase() {
  */
 export async function createJob(job: Job): Promise<void> {
   const database = initDatabase();
+  if (!database) return;
 
   database.prepare(`
     INSERT INTO jobs (id, data, created_at, updated_at)
@@ -58,6 +75,7 @@ export async function createJob(job: Job): Promise<void> {
  */
 export async function getJob(jobId: string): Promise<Job | null> {
   const database = initDatabase();
+  if (!database) return null;
 
   const row = database.prepare(`
     SELECT data FROM jobs WHERE id = ?
@@ -73,6 +91,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
  */
 export async function updateJob(jobId: string, updates: Partial<Job>): Promise<void> {
   const database = initDatabase();
+  if (!database) return;
 
   const job = await getJob(jobId);
   if (!job) throw new Error("Job not found");
@@ -93,6 +112,7 @@ export async function updateJob(jobId: string, updates: Partial<Job>): Promise<v
  */
 export async function popJob(): Promise<string | null> {
   const database = initDatabase();
+  if (!database) return null;
 
   const row = database.prepare(`
     SELECT job_id FROM queue ORDER BY created_at ASC LIMIT 1
