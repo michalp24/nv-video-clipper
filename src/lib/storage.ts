@@ -30,13 +30,15 @@ if (USE_R2) {
 
 // Import local storage functions if needed (lazy loaded to avoid build issues)
 let localModule: any = null;
-const loadLocalModule = () => {
+const loadLocalModule = async () => {
   if (!localModule && USE_LOCAL) {
     try {
-      localModule = require("./local-storage");
+      // Dynamic import to prevent webpack from bundling
+      localModule = await import("./local-storage");
       console.log("✓ Using Local Filesystem Storage (no cloud needed)");
     } catch (error) {
       console.warn("Local storage module not available (this is normal on Vercel)");
+      return null;
     }
   }
   return localModule;
@@ -46,7 +48,7 @@ const loadLocalModule = () => {
  * Generate a signed upload URL (works with GCS, R2, and local storage)
  */
 export async function generateUploadUrl(key: string): Promise<string> {
-  const local = loadLocalModule();
+  const local = await loadLocalModule();
   if (USE_LOCAL && local) {
     // Local storage implementation
     return local.generateUploadUrl(key);
@@ -75,7 +77,7 @@ export async function generateUploadUrl(key: string): Promise<string> {
  * Generate a signed download URL (works with GCS, R2, and local storage)
  */
 export async function generateDownloadUrl(key: string): Promise<string> {
-  const local = loadLocalModule();
+  const local = await loadLocalModule();
   if (USE_LOCAL && local) {
     // Local storage implementation
     return local.generateDownloadUrl(key);

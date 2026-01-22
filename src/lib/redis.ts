@@ -10,13 +10,15 @@ let redis: Redis | null = null;
 let localQueue: any = null;
 
 // Lazy load local queue to avoid build issues
-const loadLocalQueue = () => {
+const loadLocalQueue = async () => {
   if (!localQueue && USE_LOCAL) {
     try {
-      localQueue = require("./local-queue");
+      // Dynamic import to prevent webpack from bundling
+      localQueue = await import("./local-queue");
       console.log("✓ Using Local SQLite Queue (no Redis needed)");
     } catch (error) {
       console.warn("Local queue module not available (this is normal on Vercel)");
+      return null;
     }
   }
   return localQueue;
@@ -37,7 +39,7 @@ const QUEUE_KEY = "job:queue";
  * Create a new job
  */
 export async function createJob(job: Job): Promise<void> {
-  const queue = loadLocalQueue();
+  const queue = await loadLocalQueue();
   if (USE_LOCAL && queue) {
     await queue.createJob(job);
   } else if (redis) {
@@ -50,7 +52,7 @@ export async function createJob(job: Job): Promise<void> {
  * Get a job by ID
  */
 export async function getJob(jobId: string): Promise<Job | null> {
-  const queue = loadLocalQueue();
+  const queue = await loadLocalQueue();
   if (USE_LOCAL && queue) {
     return await queue.getJob(jobId);
   } else if (redis) {
@@ -65,7 +67,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
  * Update a job
  */
 export async function updateJob(jobId: string, updates: Partial<Job>): Promise<void> {
-  const queue = loadLocalQueue();
+  const queue = await loadLocalQueue();
   if (USE_LOCAL && queue) {
     await queue.updateJob(jobId, updates);
   } else if (redis) {
@@ -86,7 +88,7 @@ export async function updateJob(jobId: string, updates: Partial<Job>): Promise<v
  * Pop a job from the queue (for worker)
  */
 export async function popJob(): Promise<string | null> {
-  const queue = loadLocalQueue();
+  const queue = await loadLocalQueue();
   if (USE_LOCAL && queue) {
     return await queue.popJob();
   } else if (redis) {
