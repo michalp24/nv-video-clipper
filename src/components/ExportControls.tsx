@@ -18,45 +18,46 @@ export default function ExportControls({ onExport, disabled }: ExportControlsPro
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Export Size
-        </label>
-        <select
-          value={size}
-          onChange={(e) => setSize(e.target.value as ExportSize)}
-          className="w-full rounded-lg border border-nvidia-border bg-nvidia-gray px-4 py-2.5 text-white
-            focus:border-nvidia-green focus:outline-none focus:ring-2 focus:ring-nvidia-green/20
-            transition-colors cursor-pointer"
-        >
-          <option value="630x354">630 × 354 (Small)</option>
-          <option value="850x480">850 × 480 (Medium)</option>
-          <option value="1920x1080">1920 × 1080 (Full HD)</option>
-        </select>
+      {/* Size and Format - 2 Columns */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Export Size
+          </label>
+          <select
+            value={size}
+            onChange={(e) => setSize(e.target.value as ExportSize)}
+            className="w-full rounded-lg border border-nvidia-border bg-nvidia-gray px-3 py-2.5 text-white text-sm
+              focus:border-nvidia-green focus:outline-none focus:ring-2 focus:ring-nvidia-green/20
+              transition-colors cursor-pointer"
+          >
+            <option value="630x354">630 × 354</option>
+            <option value="850x480">850 × 480</option>
+            <option value="1920x1080">1920 × 1080</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Format
+          </label>
+          <select
+            value="mp4"
+            disabled
+            className="w-full rounded-lg border border-nvidia-border bg-nvidia-gray px-3 py-2.5 text-white text-sm
+              opacity-75 cursor-not-allowed"
+          >
+            <option value="mp4">MP4 (H.264)</option>
+          </select>
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Format
-        </label>
-        <select
-          value="mp4"
-          disabled
-          className="w-full rounded-lg border border-nvidia-border bg-nvidia-gray px-4 py-2.5 text-white
-            opacity-75 cursor-not-allowed"
-        >
-          <option value="mp4">MP4</option>
-        </select>
-        <p className="mt-1 text-xs text-gray-500">
-          MP4 format with H.264 encoding
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between rounded-lg border border-nvidia-border bg-nvidia-gray/50 p-4">
+      {/* Remove Audio Toggle */}
+      <div className="flex items-center justify-between rounded-lg border border-nvidia-border bg-nvidia-gray/50 p-3">
         <div>
           <p className="text-sm font-medium text-white">Remove Audio</p>
           <p className="mt-0.5 text-xs text-gray-400">
-            Reduces file size significantly
+            Reduces file size
           </p>
         </div>
         <button
@@ -80,6 +81,7 @@ export default function ExportControls({ onExport, disabled }: ExportControlsPro
         </button>
       </div>
 
+      {/* Export Button */}
       <button
         onClick={handleExport}
         disabled={disabled}

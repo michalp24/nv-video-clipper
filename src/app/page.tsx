@@ -147,45 +147,36 @@ export default function Home() {
           <UploadArea onUploadComplete={handleUploadComplete} />
         </div>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* Left Column - Video Preview */}
-          <div className="space-y-6">
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-white">
+        <div className="space-y-8">
+          {/* Video Preview - Full Width */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-white">
                 Video Preview
               </h3>
-              <VideoPreview
-                videoUrl={videoUrl}
-                onLoadedMetadata={handleVideoMetadata}
-              />
+              <button
+                onClick={() => {
+                  setVideoUrl(null);
+                  setVideoFile(null);
+                  setCurrentJob(null);
+                  setVideoDuration(0);
+                  setDownloadUrl(null);
+                  setExportProgress(0);
+                }}
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                ← Upload a different video
+              </button>
             </div>
-
-            {currentJob && (
-              <div>
-                <h3 className="mb-3 text-lg font-semibold text-white">
-                  Export Status
-                </h3>
-                <ExportProgress job={currentJob} />
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setVideoUrl(null);
-                setVideoFile(null);
-                setCurrentJob(null);
-                setVideoDuration(0);
-                setDownloadUrl(null);
-                setExportProgress(0);
-              }}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              ← Upload a different video
-            </button>
+            <VideoPreview
+              videoUrl={videoUrl}
+              onLoadedMetadata={handleVideoMetadata}
+            />
           </div>
 
-          {/* Right Column - Controls */}
-          <div className="space-y-6">
+          {/* Settings - 2 Columns */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Left Column - Trim Settings */}
             <div>
               <h3 className="mb-3 text-lg font-semibold text-white">
                 Trim Settings
@@ -204,16 +195,29 @@ export default function Home() {
               </div>
             </div>
 
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-white">
-                Export Settings
-              </h3>
-              <div className="rounded-xl border border-nvidia-border bg-nvidia-gray/30 p-6">
-                <ExportControls
-                  onExport={handleExport}
-                  disabled={!canExport}
-                />
+            {/* Right Column - Export Settings & Status */}
+            <div className="space-y-6">
+              <div>
+                <h3 className="mb-3 text-lg font-semibold text-white">
+                  Export Settings
+                </h3>
+                <div className="rounded-xl border border-nvidia-border bg-nvidia-gray/30 p-6">
+                  <ExportControls
+                    onExport={handleExport}
+                    disabled={!canExport}
+                  />
+                </div>
               </div>
+
+              {/* Export Status - Only shown when exporting or completed */}
+              {currentJob && (
+                <div>
+                  <h3 className="mb-3 text-lg font-semibold text-white">
+                    Export Status
+                  </h3>
+                  <ExportProgress job={currentJob} />
+                </div>
+              )}
             </div>
           </div>
         </div>
