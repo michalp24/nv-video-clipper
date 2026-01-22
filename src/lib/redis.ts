@@ -14,6 +14,7 @@ const loadLocalQueue = async () => {
   if (!localQueue && USE_LOCAL) {
     try {
       // Dynamic import to prevent webpack from bundling
+      // @ts-ignore - Optional module for local development only
       localQueue = await import("./local-queue");
       console.log("✓ Using Local SQLite Queue (no Redis needed)");
     } catch (error) {

@@ -24,6 +24,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Webpack configuration to handle optional local modules
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Ignore missing optional modules
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new (require('webpack').IgnorePlugin)({
+          resourceRegExp: /^\.\/local-(storage|queue)$/,
+          contextRegExp: /src\/lib$/,
+        })
+      );
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

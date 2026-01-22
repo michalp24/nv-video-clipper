@@ -34,6 +34,7 @@ const loadLocalModule = async () => {
   if (!localModule && USE_LOCAL) {
     try {
       // Dynamic import to prevent webpack from bundling
+      // @ts-ignore - Optional module for local development only
       localModule = await import("./local-storage");
       console.log("✓ Using Local Filesystem Storage (no cloud needed)");
     } catch (error) {
