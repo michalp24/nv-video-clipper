@@ -1,27 +1,33 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import UploadArea from "@/components/UploadArea";
 import VideoPreview from "@/components/VideoPreview";
 import TrimControls from "@/components/TrimControls";
 import ExportControls from "@/components/ExportControls";
 import ExportProgress from "@/components/ExportProgress";
+import { useFFmpeg } from "@/lib/useFFmpeg";
 import type { Job, ExportSize } from "@/types";
 
 export default function Home() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [sourceKey, setSourceKey] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(3);
   const [isValidTrim, setIsValidTrim] = useState(false);
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  
+  const { isLoaded: ffmpegLoaded, isLoading: ffmpegLoading, loadError: ffmpegError, processVideo } = useFFmpeg();
 
-  const handleUploadComplete = useCallback((url: string, key: string) => {
+  const handleUploadComplete = useCallback((url: string, key: string, file?: File) => {
     setVideoUrl(url);
-    setSourceKey(key);
+    setVideoFile(file || null);
     setCurrentJob(null);
+    setDownloadUrl(null);
   }, []);
 
   const handleVideoMetadata = useCallback((duration: number) => {
@@ -39,70 +45,72 @@ export default function Home() {
 
   const handleExport = useCallback(
     async (size: ExportSize, removeAudio: boolean) => {
-      if (!sourceKey || !isValidTrim) return;
+      if (!videoFile || !isValidTrim || !ffmpegLoaded) return;
 
       try {
         setIsExporting(true);
+        setExportProgress(0);
+        setDownloadUrl(null);
 
-        // Create job
-        const response = await fetch("/api/jobs", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sourceKey,
-            startTime,
-            duration,
-            size,
-            removeAudio,
-          }),
-        });
+        // Create a mock job for UI consistency
+        const mockJob: Job = {
+          id: "client-" + Date.now(),
+          sourceKey: "local-file",
+          startTime,
+          duration,
+          size,
+          removeAudio,
+          status: "processing",
+          progress: 0,
+          createdAt: Date.now(),
+        };
+        setCurrentJob(mockJob);
 
-        if (!response.ok) {
-          throw new Error("Failed to create job");
-        }
+        // Get dimensions from size
+        const [width, height] = size.split("x").map(Number);
 
-        const { jobId } = await response.json();
+        // Process video using FFmpeg.wasm
+        const outputBlob = await processVideo(
+          videoFile,
+          startTime,
+          duration,
+          width,
+          height,
+          (progress) => {
+            setExportProgress(progress);
+            setCurrentJob((prev) => prev ? { ...prev, progress } : null);
+          }
+        );
 
-        // Start polling for job status
-        pollJobStatus(jobId);
+        // Create download URL
+        const url = URL.createObjectURL(outputBlob);
+        setDownloadUrl(url);
+
+        // Update job to completed
+        setCurrentJob((prev) => prev ? {
+          ...prev,
+          status: "completed",
+          progress: 100,
+          resultKey: "client-download",
+          resultUrl: url,
+        } : null);
+
+        setIsExporting(false);
       } catch (error) {
         console.error("Export error:", error);
-        alert("Failed to start export. Please try again.");
+        alert(error instanceof Error ? error.message : "Failed to export video. Please try again.");
+        setCurrentJob((prev) => prev ? {
+          ...prev,
+          status: "failed",
+          error: error instanceof Error ? error.message : "Export failed",
+        } : null);
         setIsExporting(false);
       }
     },
-    [sourceKey, startTime, duration, isValidTrim]
+    [videoFile, startTime, duration, isValidTrim, ffmpegLoaded, processVideo]
   );
 
-  const pollJobStatus = useCallback(async (jobId: string) => {
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/jobs/${jobId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch job status");
-        }
-
-        const job: Job = await response.json();
-        setCurrentJob(job);
-
-        // Continue polling if job is not in a terminal state
-        if (job.status === "queued" || job.status === "processing") {
-          setTimeout(poll, 1000);
-        } else {
-          setIsExporting(false);
-        }
-      } catch (error) {
-        console.error("Poll error:", error);
-        setIsExporting(false);
-      }
-    };
-
-    poll();
-  }, []);
-
-  const canExport = videoUrl && sourceKey && isValidTrim && !isExporting;
+  const canExport = videoUrl && videoFile && isValidTrim && !isExporting && ffmpegLoaded;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -115,6 +123,19 @@ export default function Home() {
         <p className="mt-2 text-lg text-gray-400">
           Upload, trim, and export professional-quality video clips in seconds
         </p>
+        
+        {/* FFmpeg Loading Status */}
+        {ffmpegLoading && (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-nvidia-green/10 border border-nvidia-green/30 px-4 py-2 text-sm text-nvidia-green">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-nvidia-green border-t-transparent" />
+            Loading video processor...
+          </div>
+        )}
+        {ffmpegError && (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2 text-sm text-red-400">
+            ⚠️ Failed to load video processor. Please refresh the page.
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -148,9 +169,11 @@ export default function Home() {
             <button
               onClick={() => {
                 setVideoUrl(null);
-                setSourceKey(null);
+                setVideoFile(null);
                 setCurrentJob(null);
                 setVideoDuration(0);
+                setDownloadUrl(null);
+                setExportProgress(0);
               }}
               className="text-sm text-gray-400 hover:text-white transition-colors"
             >
@@ -196,7 +219,7 @@ export default function Home() {
       {/* Footer */}
       <div className="mt-12 border-t border-nvidia-border pt-8 text-center">
         <p className="text-sm text-gray-500">
-          Powered by FFmpeg • Processed securely in the cloud
+          Powered by FFmpeg.wasm • All processing happens in your browser • Your videos never leave your device
         </p>
       </div>
     </div>

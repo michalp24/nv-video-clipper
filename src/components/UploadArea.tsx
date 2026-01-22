@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 
 interface UploadAreaProps {
-  onUploadComplete: (videoUrl: string, sourceKey: string) => void;
+  onUploadComplete: (videoUrl: string, sourceKey: string, file?: File) => void;
 }
 
 export default function UploadArea({ onUploadComplete }: UploadAreaProps) {
@@ -97,7 +97,7 @@ export default function UploadArea({ onUploadComplete }: UploadAreaProps) {
         });
 
         const videoUrl = URL.createObjectURL(file);
-        onUploadComplete(videoUrl, key);
+        onUploadComplete(videoUrl, key, file);
 
       } else if (isDemoMode) {
         // DEMO MODE: Simulate upload progress
@@ -112,7 +112,7 @@ export default function UploadArea({ onUploadComplete }: UploadAreaProps) {
         const demoKey = `demo/${Date.now()}-${file.name}`;
 
         console.log("✅ Demo upload complete");
-        onUploadComplete(videoUrl, demoKey);
+        onUploadComplete(videoUrl, demoKey, file);
 
       } else {
         // CLOUD STORAGE MODE: Upload to signed URL (GCS or R2)
@@ -146,7 +146,7 @@ export default function UploadArea({ onUploadComplete }: UploadAreaProps) {
         });
 
         const videoUrl = URL.createObjectURL(file);
-        onUploadComplete(videoUrl, key);
+        onUploadComplete(videoUrl, key, file);
       }
     } catch (error) {
       console.error("Upload error:", error);

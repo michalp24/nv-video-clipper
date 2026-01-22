@@ -1,0 +1,24 @@
+# Documentation
+*.md
+GCS_*.md
+CLOUD_SETUP.md
+QUICKSTART.md
+QUICK_SETUP.txt
+LOCAL_STORAGE_SETUP.md
+PROJECT_SUMMARY.md
+DEMO_MODE.md
+setup-*.sh
+cors.json
+
+# Worker (not needed on Vercel)
+worker/
+
+# Storage (238MB - too large!)
+storage/
+
+# Build artifacts
+.next/
+
+# Environment
+.env
+.env.*
