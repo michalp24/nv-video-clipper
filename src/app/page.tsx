@@ -121,7 +121,7 @@ export default function Home() {
       {/* Hero Section */}
       <div className="mb-8 text-center">
         <h2 className="text-3xl font-bold text-white sm:text-4xl">
-          Create Perfect Video Clips
+          Make web-ready clips in seconds
         </h2>
         <p className="mt-2 text-lg text-gray-400">
           Upload, trim, and export professional-quality video clips in seconds
