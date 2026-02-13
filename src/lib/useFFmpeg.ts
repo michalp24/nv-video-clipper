@@ -151,7 +151,8 @@ export function useFFmpeg() {
 
       // Read the output file
       const data = await ffmpeg.readFile(outputName);
-      console.log("✅ Output file read, size:", data.byteLength);
+      const dataBuffer = data as Uint8Array;
+      console.log("✅ Output file read, size:", dataBuffer.byteLength);
 
       // Clean up
       console.log("🧹 Cleaning up temporary files...");
@@ -160,7 +161,7 @@ export function useFFmpeg() {
       console.log("✅ Cleanup complete");
 
       // Convert to Blob - slice to create a copy with proper ArrayBuffer type
-      const buffer = (data as Uint8Array).slice();
+      const buffer = dataBuffer.slice();
       const blob = new Blob([buffer], { type: "video/mp4" });
       console.log("🎉 Processing complete! Output blob size:", blob.size);
       
