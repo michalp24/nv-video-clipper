@@ -20,7 +20,7 @@ export default function Home() {
   const [exportProgress, setExportProgress] = useState(0);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   
-  const { isLoaded: ffmpegLoaded, isLoading: ffmpegLoading, loadError: ffmpegError, processVideo } = useFFmpeg();
+  const { isLoaded: ffmpegLoaded, isLoading: ffmpegLoading, loadError: ffmpegError, processVideo, cancelProcessing } = useFFmpeg();
 
   const handleUploadComplete = useCallback((url: string, key: string, file?: File) => {
     setVideoUrl(url);
@@ -113,6 +113,14 @@ export default function Home() {
     [videoFile, startTime, duration, isValidTrim, ffmpegLoaded, processVideo]
   );
 
+  const handleCancel = useCallback(() => {
+    cancelProcessing();
+    setIsExporting(false);
+    setCurrentJob((prev) => 
+      prev ? { ...prev, status: "failed", error: "Cancelled by user", updatedAt: Date.now() } : null
+    );
+  }, [cancelProcessing]);
+
   const canExport = videoUrl && videoFile && isValidTrim && !isExporting && ffmpegLoaded;
 
   return (
@@ -170,6 +178,7 @@ export default function Home() {
             </div>
             <VideoPreview
               videoUrl={videoUrl}
+              currentTime={startTime}
               onLoadedMetadata={handleVideoMetadata}
             />
           </div>
@@ -185,6 +194,7 @@ export default function Home() {
                 {videoDuration > 0 ? (
                   <TrimControls
                     videoDuration={videoDuration}
+                    disabled={isExporting}
                     onTrimChange={handleTrimChange}
                   />
                 ) : (
@@ -203,6 +213,7 @@ export default function Home() {
               <div className="rounded-xl border border-nvidia-border bg-nvidia-gray/30 p-6">
                 <ExportControls
                   onExport={handleExport}
+                  onCancel={handleCancel}
                   disabled={!canExport}
                   currentJob={currentJob}
                   isExporting={isExporting}

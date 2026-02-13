@@ -4,10 +4,11 @@ import { useEffect, useState, useRef } from "react";
 
 interface TrimControlsProps {
   videoDuration: number;
+  disabled?: boolean;
   onTrimChange: (startTime: number, duration: number, isValid: boolean) => void;
 }
 
-export default function TrimControls({ videoDuration, onTrimChange }: TrimControlsProps) {
+export default function TrimControls({ videoDuration, disabled = false, onTrimChange }: TrimControlsProps) {
   const [startTime, setStartTime] = useState(0);
   const [clipDuration, setClipDuration] = useState(4);
   const [isDragging, setIsDragging] = useState(false);
@@ -82,12 +83,13 @@ export default function TrimControls({ videoDuration, onTrimChange }: TrimContro
           {[3, 4, 5, 6, 7, 8, 9, 10].map((duration) => (
             <button
               key={duration}
-              onClick={() => setClipDuration(duration)}
+              onClick={() => !disabled && setClipDuration(duration)}
+              disabled={disabled}
               className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${
                 clipDuration === duration
                   ? 'bg-nvidia-green text-black shadow-lg shadow-nvidia-green/30'
                   : 'bg-nvidia-gray border border-nvidia-border text-gray-300 hover:border-nvidia-green/50 hover:text-white'
-              }`}
+              } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {duration}s
             </button>
@@ -103,7 +105,9 @@ export default function TrimControls({ videoDuration, onTrimChange }: TrimContro
 
         <div 
           ref={timelineRef}
-          className="relative h-12 rounded-lg bg-nvidia-gray/50 border border-nvidia-border select-none"
+          className={`relative h-12 rounded-lg bg-nvidia-gray/50 border border-nvidia-border select-none ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
           {/* Unselected area (left) */}
           <div 
@@ -114,13 +118,13 @@ export default function TrimControls({ videoDuration, onTrimChange }: TrimContro
           {/* Selected clip - Simple draggable green bar */}
           <div 
             className={`absolute top-0 h-full bg-nvidia-green rounded transition-all ${
-              isDragging ? 'cursor-grabbing opacity-90' : 'cursor-grab hover:opacity-80'
+              disabled ? 'cursor-not-allowed' : isDragging ? 'cursor-grabbing opacity-90' : 'cursor-grab hover:opacity-80'
             }`}
             style={{ 
               left: `${startPercent}%`, 
               width: `${durationPercent}%` 
             }}
-            onMouseDown={handleMouseDown}
+            onMouseDown={disabled ? undefined : handleMouseDown}
           />
 
           {/* Unselected area (right) */}

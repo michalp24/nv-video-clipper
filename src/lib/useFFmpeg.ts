@@ -9,6 +9,7 @@ export function useFFmpeg() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const processingRef = useRef(false);
 
   useEffect(() => {
     loadFFmpeg();
@@ -40,6 +41,11 @@ export function useFFmpeg() {
     }
   };
 
+  const cancelProcessing = () => {
+    processingRef.current = false;
+    console.log("⚠️ Cancellation requested");
+  };
+
   const processVideo = async (
     videoFile: File,
     startTime: number,
@@ -54,12 +60,26 @@ export function useFFmpeg() {
     }
 
     const ffmpeg = ffmpegRef.current;
+    processingRef.current = true;
+
+    console.log("🎬 Starting video processing...");
+    console.log("📊 Input:", { startTime, duration, width, height, removeAudio, fileSize: videoFile.size });
 
     // Set up progress monitoring
     ffmpeg.on("progress", ({ progress }) => {
-      if (onProgress) {
-        onProgress(Math.round(progress * 100));
+      if (!processingRef.current) {
+        throw new Error("Processing cancelled by user");
       }
+      const percent = Math.round(progress * 100);
+      console.log("📈 Progress:", percent + "%");
+      if (onProgress) {
+        onProgress(percent);
+      }
+    });
+
+    // Set up log monitoring
+    ffmpeg.on("log", ({ message }) => {
+      console.log("FFmpeg log:", message);
     });
 
     try {
@@ -67,7 +87,13 @@ export function useFFmpeg() {
       const inputName = "input.mp4";
       const outputName = "output.mp4";
       
+      console.log("📁 Writing input file to FFmpeg filesystem...");
       await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
+      console.log("✅ Input file written");
+
+      if (!processingRef.current) {
+        throw new Error("Processing cancelled by user");
+      }
 
       // Build FFmpeg command with explicit stream mapping
       const ffmpegArgs = [
@@ -78,25 +104,27 @@ export function useFFmpeg() {
 
       // Add audio settings or remove audio
       if (removeAudio) {
-        console.log("FFmpeg: Removing audio (no audio stream)");
+        console.log("🔇 FFmpeg: Removing audio (no audio stream)");
         // Only map video stream, completely exclude audio
         ffmpegArgs.push(
           "-map", "0:v:0",  // Only map first video stream
           "-vf", `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
           "-c:v", "libx264",
-          "-preset", "fast",
-          "-crf", "23"
+          "-preset", "ultrafast",  // Faster encoding for browser processing
+          "-crf", "28",  // Slightly lower quality but much faster
+          "-movflags", "+faststart"  // Optimize for web playback
         );
       } else {
-        console.log("FFmpeg: Keeping audio with AAC encoding");
+        console.log("🔊 FFmpeg: Keeping audio with AAC encoding");
         // Map both video and audio streams
         ffmpegArgs.push(
           "-map", "0:v:0",  // Map first video stream
           "-map", "0:a:0?", // Map first audio stream if it exists (? makes it optional)
           "-vf", `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
           "-c:v", "libx264",
-          "-preset", "fast",
-          "-crf", "23",
+          "-preset", "ultrafast",  // Faster encoding for browser processing
+          "-crf", "28",  // Slightly lower quality but much faster
+          "-movflags", "+faststart",  // Optimize for web playback
           "-c:a", "aac",
           "-b:a", "128k"
         );
@@ -104,23 +132,41 @@ export function useFFmpeg() {
 
       ffmpegArgs.push(outputName);
 
-      console.log("FFmpeg command:", ffmpegArgs.join(" "));
+      console.log("⚙️ FFmpeg command:", ffmpegArgs.join(" "));
+      console.log("🚀 Starting FFmpeg execution...");
+
+      if (!processingRef.current) {
+        throw new Error("Processing cancelled by user");
+      }
 
       // Run FFmpeg command to trim and resize
       await ffmpeg.exec(ffmpegArgs);
 
+      if (!processingRef.current) {
+        throw new Error("Processing cancelled by user");
+      }
+
+      console.log("✅ FFmpeg execution completed");
+      console.log("📖 Reading output file...");
+
       // Read the output file
       const data = await ffmpeg.readFile(outputName);
+      console.log("✅ Output file read, size:", data.byteLength);
 
       // Clean up
+      console.log("🧹 Cleaning up temporary files...");
       await ffmpeg.deleteFile(inputName);
       await ffmpeg.deleteFile(outputName);
+      console.log("✅ Cleanup complete");
 
       // Convert to Blob - slice to create a copy with proper ArrayBuffer type
       const buffer = (data as Uint8Array).slice();
-      return new Blob([buffer], { type: "video/mp4" });
+      const blob = new Blob([buffer], { type: "video/mp4" });
+      console.log("🎉 Processing complete! Output blob size:", blob.size);
+      
+      return blob;
     } catch (error) {
-      console.error("FFmpeg processing error:", error);
+      console.error("❌ FFmpeg processing error:", error);
       throw new Error(error instanceof Error ? error.message : "Video processing failed");
     }
   };
@@ -130,5 +176,6 @@ export function useFFmpeg() {
     isLoading,
     loadError,
     processVideo,
+    cancelProcessing,
   };
 }

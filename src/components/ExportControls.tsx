@@ -5,6 +5,7 @@ import type { ExportSize, Job } from "@/types";
 
 interface ExportControlsProps {
   onExport: (size: ExportSize, removeAudio: boolean) => void;
+  onCancel?: () => void;
   disabled: boolean;
   currentJob?: Job | null;
   isExporting?: boolean;
@@ -12,6 +13,7 @@ interface ExportControlsProps {
 
 export default function ExportControls({ 
   onExport, 
+  onCancel,
   disabled, 
   currentJob,
   isExporting = false 
@@ -46,9 +48,10 @@ export default function ExportControls({
           <select
             value={size}
             onChange={(e) => setSize(e.target.value as ExportSize)}
-            className="w-full rounded-lg border border-nvidia-border bg-nvidia-gray px-3 py-2.5 text-white text-sm
+            disabled={isExporting}
+            className={`w-full rounded-lg border border-nvidia-border bg-nvidia-gray px-3 py-2.5 text-white text-sm
               focus:border-nvidia-green focus:outline-none focus:ring-2 focus:ring-nvidia-green/20
-              transition-colors cursor-pointer"
+              transition-colors ${isExporting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             <option value="630x354">630 × 354</option>
             <option value="850x480">850 × 480</option>
@@ -71,39 +74,42 @@ export default function ExportControls({
         </div>
       </div>
 
-      {/* Remove Audio Toggle */}
-      <div className="flex items-center justify-between rounded-lg border border-nvidia-border bg-nvidia-gray/50 p-3">
-        <div>
-          <p className="text-sm font-medium text-white">
-            {removeAudio ? "Audio: Off" : "Audio: On"}
-          </p>
-          <p className="mt-0.5 text-xs text-gray-400">
-            {removeAudio ? "No audio in export" : "Include audio"}
-          </p>
+      {/* Audio Settings - Radio Buttons */}
+      <div className="rounded-lg border border-nvidia-border bg-nvidia-gray/50 p-3">
+        <label className="block text-sm font-medium text-gray-300 mb-3">
+          Audio
+        </label>
+        <div className="flex gap-3">
+          <label className={`flex flex-1 items-center gap-2 rounded-lg border border-nvidia-border bg-nvidia-dark/50 p-3 transition-all 
+            ${isExporting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-nvidia-green/50'}`}>
+            <input
+              type="radio"
+              name="audio"
+              checked={!removeAudio}
+              onChange={() => setRemoveAudio(false)}
+              disabled={isExporting}
+              className="h-4 w-4 border-nvidia-border bg-nvidia-gray text-nvidia-green 
+                focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2 focus:ring-offset-nvidia-dark
+                disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <span className="text-sm font-medium text-white">On</span>
+          </label>
+          
+          <label className={`flex flex-1 items-center gap-2 rounded-lg border border-nvidia-border bg-nvidia-dark/50 p-3 transition-all 
+            ${isExporting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-nvidia-green/50'}`}>
+            <input
+              type="radio"
+              name="audio"
+              checked={removeAudio}
+              onChange={() => setRemoveAudio(true)}
+              disabled={isExporting}
+              className="h-4 w-4 border-nvidia-border bg-nvidia-gray text-nvidia-green 
+                focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2 focus:ring-offset-nvidia-dark
+                disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <span className="text-sm font-medium text-white">Off</span>
+          </label>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={removeAudio}
-          onClick={() => {
-            const newValue = !removeAudio;
-            console.log("Toggle audio removal:", newValue);
-            setRemoveAudio(newValue);
-          }}
-          className={`
-            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-            focus:outline-none focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2
-            focus:ring-offset-nvidia-dark
-            ${removeAudio ? 'bg-nvidia-green' : 'bg-nvidia-border'}
-          `}
-        >
-          <span
-            className={`
-              inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-              ${removeAudio ? 'translate-x-6' : 'translate-x-1'}
-            `}
-          />
-        </button>
       </div>
 
       {/* Export Button / Progress / Download */}
@@ -140,18 +146,33 @@ export default function ExportControls({
           Download Clip
         </button>
       ) : (
-        // Progress Bar
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-300">Processing...</span>
-            <span className="font-semibold text-nvidia-green">{currentJob?.progress || 0}%</span>
+        // Progress Bar with Cancel Button
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-300">Processing...</span>
+              <span className="font-semibold text-nvidia-green">{currentJob?.progress || 0}%</span>
+            </div>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-nvidia-border">
+              <div
+                className="h-full bg-nvidia-green transition-all duration-300"
+                style={{ width: `${currentJob?.progress || 0}%` }}
+              />
+            </div>
           </div>
-          <div className="h-3 w-full overflow-hidden rounded-full bg-nvidia-border">
-            <div
-              className="h-full bg-nvidia-green transition-all duration-300"
-              style={{ width: `${currentJob?.progress || 0}%` }}
-            />
-          </div>
+          
+          {/* Cancel Button */}
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="w-full rounded-lg px-6 py-2.5 text-sm font-medium transition-all
+                border border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:border-red-500
+                focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+                focus:ring-offset-nvidia-dark"
+            >
+              Cancel Processing
+            </button>
+          )}
         </div>
       )}
     </div>
