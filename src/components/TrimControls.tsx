@@ -17,7 +17,7 @@ export default function TrimControls({ videoDuration, onTrimChange }: TrimContro
 
   const endTime = startTime + clipDuration;
   const maxStartTime = Math.floor(Math.max(0, videoDuration - clipDuration));
-  const isValid = clipDuration >= 3 && clipDuration <= 6 && endTime <= videoDuration;
+  const isValid = clipDuration >= 3 && clipDuration <= 10 && endTime <= videoDuration;
 
   useEffect(() => {
     onTrimChange(startTime, clipDuration, isValid);
@@ -79,7 +79,7 @@ export default function TrimControls({ videoDuration, onTrimChange }: TrimContro
           Clip Duration
         </label>
         <div className="flex gap-2">
-          {[3, 4, 5, 6].map((duration) => (
+          {[3, 4, 5, 6, 7, 8, 9, 10].map((duration) => (
             <button
               key={duration}
               onClick={() => setClipDuration(duration)}
