@@ -108,6 +108,38 @@ function getYtDlpCommand() {
     };
   }
 
+  const bundledLinuxBinary = join(
+    process.cwd(),
+    "node_modules",
+    "youtube-dl-exec",
+    "bin",
+    "yt-dlp_linux"
+  );
+  if (process.platform === "linux" && existsSync(bundledLinuxBinary)) {
+    return {
+      argsPrefix: [] as string[],
+      command: bundledLinuxBinary,
+    };
+  }
+
+  const bundledBinary = join(
+    process.cwd(),
+    "node_modules",
+    "youtube-dl-exec",
+    "bin",
+    "yt-dlp"
+  );
+  if (existsSync(bundledBinary)) {
+    const pythonPath = PYTHON_CANDIDATES.find((candidate) => existsSync(candidate));
+
+    if (pythonPath) {
+      return {
+        argsPrefix: [bundledBinary],
+        command: pythonPath,
+      };
+    }
+  }
+
   return {
     argsPrefix: [] as string[],
     command: "yt-dlp",

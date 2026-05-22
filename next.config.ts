@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     "/api/thumbnail/youtube": [
       "./node_modules/@sparticuz/chromium/bin/**",
       "./node_modules/playwright-core/browsers.json",
+      "./node_modules/youtube-dl-exec/bin/**",
     ],
   },
   reactStrictMode: true,
