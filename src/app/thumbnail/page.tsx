@@ -180,6 +180,18 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+async function holdYouTubeFrame(player: YouTubePlayer, seconds: number, settleMs = 500) {
+  requestBestYouTubeQuality(player);
+  player.mute();
+  player.seekTo(seconds, true);
+  player.playVideo();
+  await wait(settleMs);
+  player.pauseVideo();
+  player.seekTo(seconds, true);
+  await wait(250);
+  player.pauseVideo();
+}
+
 function getBestYouTubeQuality(player: YouTubePlayer) {
   const availableQualities = player.getAvailableQualityLevels?.() || [];
   const availableSet = new Set(availableQualities);
@@ -304,16 +316,18 @@ export default function ThumbnailPage() {
       return;
     }
 
-    youtubePlayerRef.current.seekTo(timestamp, true);
-    youtubePlayerRef.current.mute();
-    requestBestYouTubeQuality(youtubePlayerRef.current);
-    youtubePlayerRef.current.playVideo();
+    const player = youtubePlayerRef.current;
+    let isCancelled = false;
 
-    const pauseTimer = window.setTimeout(() => {
-      youtubePlayerRef.current?.pauseVideo();
-    }, 450);
+    holdYouTubeFrame(player, timestamp).then(() => {
+      if (!isCancelled) {
+        player.pauseVideo();
+      }
+    });
 
-    return () => window.clearTimeout(pauseTimer);
+    return () => {
+      isCancelled = true;
+    };
   }, [isYouTubePlayerReady, sourceType, timestamp]);
 
   const handleLoadVideo = useCallback(async () => {
@@ -521,14 +535,12 @@ export default function ThumbnailPage() {
         setIsCapturing(true);
         setError("");
         const requestedQuality = requestBestYouTubeQuality(player);
-        player.seekTo(timestamp, true);
-        player.mute();
-        player.playVideo();
+        await holdYouTubeFrame(player, timestamp, 1200);
 
         flushSync(() => {
           setGeneratedThumbnail(null);
           setIsScreenCaptureMode(true);
-          setNotice(`Choose this tab in the browser prompt. Requesting ${requestedQuality} before capture.`);
+          setNotice(`Choose this tab in the browser prompt. The frame is paused at ${timestampLabel} in ${requestedQuality}.`);
         });
 
         displayStream = await navigator.mediaDevices.getDisplayMedia({
@@ -578,8 +590,8 @@ export default function ThumbnailPage() {
         captureVideo.srcObject = displayStream;
         await metadataLoaded;
         await captureVideo.play();
-        requestBestYouTubeQuality(player);
-        await wait(1800);
+        await holdYouTubeFrame(player, timestamp, 450);
+        await wait(250);
 
         if (!captureVideo.videoWidth || !captureVideo.videoHeight) {
           throw new Error("The shared tab did not provide a video frame.");
