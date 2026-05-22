@@ -297,6 +297,22 @@ function captureFrameFromStream(streamUrl: string, timestamp: number) {
   });
 }
 
+function getBrowserCaptureOrigin() {
+  if (process.env.YOUTUBE_CAPTURE_ORIGIN) {
+    return process.env.YOUTUBE_CAPTURE_ORIGIN;
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return "https://thumbnail-clipper.local";
+}
+
 async function captureFrameFromYouTubeEmbed(videoId: string, timestamp: number) {
   const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
   const browserArgs = [
@@ -345,7 +361,7 @@ async function captureFrameFromYouTubeEmbed(videoId: string, timestamp: number) 
       },
     });
 
-    const captureOrigin = "https://thumbnail-clipper.local";
+    const captureOrigin = getBrowserCaptureOrigin();
     const captureUrl = `${captureOrigin}/capture`;
     const targetTimestamp = Math.max(0, Math.floor(timestamp));
     const html = `<!doctype html>
