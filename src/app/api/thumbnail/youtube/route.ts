@@ -25,6 +25,7 @@ const PYTHON_CANDIDATES = [
   "/usr/local/bin/python3.13",
   "/usr/local/bin/python3.12",
 ].filter(Boolean) as string[];
+const YOUTUBE_FALLBACK_PLAYER_CLIENTS = ["android_vr", "android,ios", "tv"];
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -55,6 +56,13 @@ function getYouTubeErrorMessage(error: unknown) {
   if (message.includes("Timed out")) return message;
 
   return "Unable to extract that YouTube video.";
+}
+
+function shouldTryAlternateYouTubeClient(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalizedMessage = message.toLowerCase();
+
+  return normalizedMessage.includes("sign in") || message.includes("429");
 }
 
 function getVideoId(url: string) {
@@ -202,17 +210,29 @@ type YtDlpInfo = {
 async function getVideoInfo(url: string) {
   const args = ["--dump-single-json"];
   const timeoutMessage = "Timed out while loading YouTube video details.";
-  let stdout: string;
+  let stdout = "";
 
   try {
     stdout = await runYtDlp(buildYtDlpArgs(url, args), timeoutMessage);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.toLowerCase().includes("sign in") && !message.includes("429")) {
+    if (!shouldTryAlternateYouTubeClient(error)) {
       throw error;
     }
 
-    stdout = await runYtDlp(buildYtDlpArgs(url, args, "android,ios"), timeoutMessage);
+    let lastError: unknown = error;
+    for (const playerClient of YOUTUBE_FALLBACK_PLAYER_CLIENTS) {
+      try {
+        stdout = await runYtDlp(buildYtDlpArgs(url, args, playerClient), timeoutMessage);
+        lastError = null;
+        break;
+      } catch (fallbackError) {
+        lastError = fallbackError;
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
   }
 
   const info = JSON.parse(stdout) as YtDlpInfo;
@@ -239,17 +259,29 @@ async function getStreamInfo(url: string): Promise<StreamInfo> {
       "--dump-single-json",
     ];
   const timeoutMessage = "Timed out while resolving the YouTube video stream.";
-  let stdout: string;
+  let stdout = "";
 
   try {
     stdout = await runYtDlp(buildYtDlpArgs(url, args), timeoutMessage);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.toLowerCase().includes("sign in") && !message.includes("429")) {
+    if (!shouldTryAlternateYouTubeClient(error)) {
       throw error;
     }
 
-    stdout = await runYtDlp(buildYtDlpArgs(url, args, "android,ios"), timeoutMessage);
+    let lastError: unknown = error;
+    for (const playerClient of YOUTUBE_FALLBACK_PLAYER_CLIENTS) {
+      try {
+        stdout = await runYtDlp(buildYtDlpArgs(url, args, playerClient), timeoutMessage);
+        lastError = null;
+        break;
+      } catch (fallbackError) {
+        lastError = fallbackError;
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
   }
 
   const info = JSON.parse(stdout) as YtDlpInfo;
