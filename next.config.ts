@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/thumbnail/youtube": [
+      "./node_modules/@sparticuz/chromium/bin/**",
+      "./node_modules/playwright-core/browsers.json",
+    ],
+  },
   reactStrictMode: true,
   // Headers required for FFmpeg.wasm (SharedArrayBuffer support)
   async headers() {
