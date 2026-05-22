@@ -91,6 +91,20 @@ function getYtDlpCommand() {
     };
   }
 
+  const bundledLinuxBinary = join(
+    process.cwd(),
+    "node_modules",
+    "youtube-dl-exec",
+    "bin",
+    "yt-dlp_linux"
+  );
+  if (process.platform === "linux" && existsSync(bundledLinuxBinary)) {
+    return {
+      argsPrefix: [] as string[],
+      command: bundledLinuxBinary,
+    };
+  }
+
   const localBinary = join(process.cwd(), "bin", "yt-dlp");
   if (existsSync(localBinary)) {
     const pythonPath = PYTHON_CANDIDATES.find((candidate) => existsSync(candidate));
@@ -105,20 +119,6 @@ function getYtDlpCommand() {
     return {
       argsPrefix: [] as string[],
       command: localBinary,
-    };
-  }
-
-  const bundledLinuxBinary = join(
-    process.cwd(),
-    "node_modules",
-    "youtube-dl-exec",
-    "bin",
-    "yt-dlp_linux"
-  );
-  if (process.platform === "linux" && existsSync(bundledLinuxBinary)) {
-    return {
-      argsPrefix: [] as string[],
-      command: bundledLinuxBinary,
     };
   }
 
