@@ -45,3 +45,6 @@ next-env.d.ts
 /worker/dist
 storage/
 storage/
+
+# local video extractor binary
+/bin/yt-dlp
