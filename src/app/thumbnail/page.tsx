@@ -1,24 +1,41 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 const THUMBNAIL_WIDTH = 1980;
 const THUMBNAIL_HEIGHT = 1080;
 const MAX_YOUTUBE_TIMESTAMP_SECONDS = 60 * 60 * 12;
+const YOUTUBE_QUALITY_ORDER = [
+  "highres",
+  "hd2160",
+  "hd1440",
+  "hd1080",
+  "hd720",
+  "large",
+  "medium",
+  "small",
+  "tiny",
+  "auto",
+];
 
 type SourceType = "direct" | "youtube" | null;
 type GeneratedThumbnail = {
   filename: string;
-  source: "browser-screenshot" | "direct-frame" | "exact-frame";
+  source: "browser-tab-frame" | "browser-screenshot" | "direct-frame" | "exact-frame";
   url: string;
 };
 type YouTubePlayer = {
   destroy: () => void;
+  getAvailableQualityLevels?: () => string[];
   getDuration: () => number;
+  getPlaybackQuality?: () => string;
   mute: () => void;
   pauseVideo: () => void;
   playVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  setPlaybackQuality?: (quality: string) => void;
+  setPlaybackQualityRange?: (smallestQuality: string, largestQuality?: string) => void;
 };
 
 declare global {
@@ -159,9 +176,34 @@ function waitForSeek(video: HTMLVideoElement, timestamp: number) {
   });
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function getBestYouTubeQuality(player: YouTubePlayer) {
+  const availableQualities = player.getAvailableQualityLevels?.() || [];
+  const availableSet = new Set(availableQualities);
+
+  return (
+    YOUTUBE_QUALITY_ORDER.find((quality) => availableSet.has(quality)) ||
+    availableQualities[0] ||
+    "hd1080"
+  );
+}
+
+function requestBestYouTubeQuality(player: YouTubePlayer) {
+  const bestQuality = getBestYouTubeQuality(player);
+
+  player.setPlaybackQualityRange?.(bestQuality, bestQuality);
+  player.setPlaybackQuality?.(bestQuality);
+
+  return bestQuality;
+}
+
 export default function ThumbnailPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const youtubeContainerRef = useRef<HTMLDivElement>(null);
+  const youtubePreviewFrameRef = useRef<HTMLDivElement>(null);
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
   const timestampRef = useRef(0);
   const [urlInput, setUrlInput] = useState("");
@@ -177,6 +219,7 @@ export default function ThumbnailPage() {
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [isYouTubePlayerReady, setIsYouTubePlayerReady] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isScreenCaptureMode, setIsScreenCaptureMode] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [generatedThumbnail, setGeneratedThumbnail] = useState<GeneratedThumbnail | null>(null);
@@ -217,9 +260,14 @@ export default function ThumbnailPage() {
           width: "100%",
           playerVars: {
             autoplay: 0,
-            controls: 1,
+            controls: 0,
+            disablekb: 1,
+            fs: 0,
+            iv_load_policy: 3,
+            modestbranding: 1,
             playsinline: 1,
             rel: 0,
+            vq: "hd2160",
           },
           events: {
             onReady: ({ target }) => {
@@ -233,6 +281,7 @@ export default function ThumbnailPage() {
               }
 
               target.mute();
+              requestBestYouTubeQuality(target);
               target.seekTo(timestampRef.current, true);
               setIsYouTubePlayerReady(true);
             },
@@ -257,6 +306,7 @@ export default function ThumbnailPage() {
 
     youtubePlayerRef.current.seekTo(timestamp, true);
     youtubePlayerRef.current.mute();
+    requestBestYouTubeQuality(youtubePlayerRef.current);
     youtubePlayerRef.current.playVideo();
 
     const pauseTimer = window.setTimeout(() => {
@@ -454,52 +504,131 @@ export default function ThumbnailPage() {
     };
 
     if (sourceType === "youtube") {
+      let displayStream: MediaStream | null = null;
+
       try {
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          throw new Error("Your browser does not support tab capture. Try Chrome or Edge.");
+        }
+
+        const captureTarget = youtubePreviewFrameRef.current;
+        const player = youtubePlayerRef.current;
+
+        if (!captureTarget || !player || !isYouTubePlayerReady) {
+          throw new Error("The YouTube preview is not ready yet.");
+        }
+
         setIsCapturing(true);
         setError("");
-        setNotice("");
+        const requestedQuality = requestBestYouTubeQuality(player);
+        player.seekTo(timestamp, true);
+        player.mute();
+        player.playVideo();
 
-        const response = await fetch("/api/thumbnail/youtube", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ timestamp, url: videoUrl }),
+        flushSync(() => {
+          setGeneratedThumbnail(null);
+          setIsScreenCaptureMode(true);
+          setNotice(`Choose this tab in the browser prompt. Requesting ${requestedQuality} before capture.`);
         });
 
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          const setupHint = data?.details?.setup ? ` ${data.details.setup}` : "";
-          const sourceResolution = data?.details?.sourceResolution
-            ? ` Source available: ${data.details.sourceResolution}.`
-            : "";
-          throw new Error(
-            `${data?.error || "Unable to capture a thumbnail from that YouTube video."}${sourceResolution}${setupHint}`
-          );
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          audio: false,
+          video: {
+            displaySurface: "browser",
+            frameRate: {
+              ideal: 5,
+              max: 10,
+            },
+            height: {
+              ideal: 2160,
+            },
+            width: {
+              ideal: 3840,
+            },
+          },
+          preferCurrentTab: true,
+          selfBrowserSurface: "include",
+          surfaceSwitching: "exclude",
+        } as DisplayMediaStreamOptions);
+
+        const captureVideo = document.createElement("video");
+        captureVideo.muted = true;
+        captureVideo.playsInline = true;
+
+        const metadataLoaded = new Promise<void>((resolve, reject) => {
+          const cleanup = () => {
+            captureVideo.removeEventListener("loadedmetadata", handleLoadedMetadata);
+            captureVideo.removeEventListener("error", handleError);
+          };
+
+          const handleLoadedMetadata = () => {
+            cleanup();
+            resolve();
+          };
+
+          const handleError = () => {
+            cleanup();
+            reject(new Error("Unable to read the shared tab."));
+          };
+
+          captureVideo.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
+          captureVideo.addEventListener("error", handleError, { once: true });
+        });
+
+        captureVideo.srcObject = displayStream;
+        await metadataLoaded;
+        await captureVideo.play();
+        requestBestYouTubeQuality(player);
+        await wait(1800);
+
+        if (!captureVideo.videoWidth || !captureVideo.videoHeight) {
+          throw new Error("The shared tab did not provide a video frame.");
         }
 
-        const blob = await response.blob();
-        const thumbnailSource = response.headers.get("X-Thumbnail-Source");
-        const source =
-          thumbnailSource === "browser-screenshot" ? "browser-screenshot" : "exact-frame";
-        const filename =
-          source === "browser-screenshot"
-            ? `thumbnail-${youtubeVideoId || "youtube"}-${Math.round(timestamp)}s-screenshot.png`
-            : `thumbnail-${youtubeVideoId || "youtube"}-${Math.round(timestamp)}s.png`;
-        const downloadUrl = saveGeneratedThumbnail(blob, filename, source);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const targetRect = captureTarget.getBoundingClientRect();
+        const scaleX = captureVideo.videoWidth / window.innerWidth;
+        const scaleY = captureVideo.videoHeight / window.innerHeight;
+        const sourceX = Math.max(0, Math.round(targetRect.left * scaleX));
+        const sourceY = Math.max(0, Math.round(targetRect.top * scaleY));
+        const sourceWidth = Math.min(
+          captureVideo.videoWidth - sourceX,
+          Math.round(targetRect.width * scaleX)
+        );
+        const sourceHeight = Math.min(
+          captureVideo.videoHeight - sourceY,
+          Math.round(targetRect.height * scaleY)
+        );
 
-        if (thumbnailSource === "browser-screenshot") {
-          setNotice("");
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+          throw new Error("The shared tab could not be matched to the video preview.");
         }
+
+        await downloadCanvas(
+          (context) => {
+            context.drawImage(
+              captureVideo,
+              sourceX,
+              sourceY,
+              sourceWidth,
+              sourceHeight,
+              0,
+              0,
+              THUMBNAIL_WIDTH,
+              THUMBNAIL_HEIGHT
+            );
+          },
+          `thumbnail-${youtubeVideoId || "youtube"}-${Math.round(timestamp)}s.png`,
+          "browser-tab-frame"
+        );
+
+        setNotice("");
       } catch (captureError) {
-        setError(captureError instanceof Error ? captureError.message : "Unable to download that thumbnail.");
+        setNotice("");
+        setError(captureError instanceof Error ? captureError.message : "Unable to capture that YouTube thumbnail.");
       } finally {
+        displayStream?.getTracks().forEach((track) => track.stop());
+        youtubePlayerRef.current?.pauseVideo();
+        setIsScreenCaptureMode(false);
         setIsCapturing(false);
       }
       return;
@@ -559,7 +688,7 @@ export default function ThumbnailPage() {
     } finally {
       setIsCapturing(false);
     }
-  }, [canCapture, sourceType, timestamp, videoUrl, youtubeVideoId]);
+  }, [canCapture, isYouTubePlayerReady, sourceType, timestamp, youtubeVideoId]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -587,8 +716,28 @@ export default function ThumbnailPage() {
 
           <div className="overflow-hidden rounded-xl border border-nvidia-border bg-black">
             {videoUrl && sourceType === "youtube" && youtubeVideoId ? (
-              <div className="aspect-video w-full bg-black">
-                <div ref={youtubeContainerRef} className="h-full w-full" />
+              <div
+                className={
+                  isScreenCaptureMode
+                    ? "fixed inset-0 z-50 flex items-center justify-center bg-black"
+                    : "aspect-video w-full bg-black"
+                }
+              >
+                <div
+                  ref={youtubePreviewFrameRef}
+                  className={
+                    isScreenCaptureMode
+                      ? "aspect-video h-auto max-h-screen w-screen bg-black"
+                      : "h-full w-full"
+                  }
+                >
+                  <div ref={youtubeContainerRef} className="h-full w-full" />
+                </div>
+                {isScreenCaptureMode && (
+                  <div className="pointer-events-none fixed bottom-6 left-1/2 max-w-md -translate-x-1/2 rounded-lg border border-nvidia-border bg-nvidia-darker/90 px-4 py-3 text-center text-sm text-gray-200 shadow-2xl">
+                    Share this tab in the browser prompt. The app will capture only the video frame.
+                  </div>
+                )}
               </div>
             ) : videoUrl ? (
               <video
@@ -646,6 +795,9 @@ export default function ThumbnailPage() {
                 </p>
                 <p className="mt-1 line-clamp-2 text-sm font-medium text-white">
                   {videoTitle}
+                </p>
+                <p className="mt-2 text-xs text-gray-400">
+                  Downloads use browser tab capture. When prompted, share this tab.
                 </p>
               </div>
             )}
@@ -737,7 +889,9 @@ export default function ThumbnailPage() {
                     Thumbnail ready
                   </p>
                   <p className="mt-1 text-xs text-gray-400">
-                    {generatedThumbnail.source === "browser-screenshot"
+                    {generatedThumbnail.source === "browser-tab-frame"
+                      ? "Captured from your browser preview, 1980 x 1080."
+                      : generatedThumbnail.source === "browser-screenshot"
                       ? "YouTube timestamp frame capture, 1980 x 1080."
                       : "Exact frame thumbnail, 1980 x 1080."}
                   </p>
@@ -772,7 +926,13 @@ export default function ThumbnailPage() {
                   : "cursor-not-allowed bg-nvidia-gray text-gray-500"
               }`}
             >
-              {isCapturing ? "Preparing Thumbnail..." : "Download Thumbnail"}
+              {isCapturing
+                ? sourceType === "youtube"
+                  ? "Waiting for Tab Capture..."
+                  : "Preparing Thumbnail..."
+                : sourceType === "youtube"
+                  ? "Capture Thumbnail"
+                  : "Download Thumbnail"}
             </button>
           </div>
         </aside>
@@ -780,7 +940,7 @@ export default function ThumbnailPage() {
 
       <div className="mt-12 border-t border-nvidia-border pt-8 text-center">
         <p className="text-sm text-gray-500">
-          Direct links render in the browser. YouTube thumbnails are captured server-side from the selected timestamp.
+          Direct links export directly. YouTube exports ask you to share the current tab, then capture the selected preview frame.
         </p>
       </div>
     </div>
